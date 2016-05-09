@@ -1,0 +1,33 @@
+export default function transformer(file, api) {
+  const j = api.jscodeshift;
+  function promisify(p) {
+    var callback = p.value.arguments.shift();
+    var errback = p.value.arguments.shift();
+    return j.callExpression(
+      j.memberExpression(
+        j.callExpression(
+          j.memberExpression(
+            p.value, j.identifier('then')
+          ),
+          [callback]
+        ),
+        j.identifier('catch')
+      ),
+      [errback]
+    );
+  }
+
+
+
+  return j(file.source)
+    .find(j.CallExpression, {callee: {property: {type: 'Identifier', name: 'createOffer'}}})
+    .replaceWith(function(p) {
+      var len = p.value.arguments.length;
+      if (len === 2 || len === 3) {
+        return promisify(p);
+      } else {
+        return p.value;
+      }
+    })
+    .toSource({wrapColumn: 1});
+};
