@@ -16,9 +16,6 @@ export default function transformer(file, api) {
       [errback]
     );
   }
-
-
-
   return j(file.source)
     .find(j.CallExpression, {callee: {property: {type: 'Identifier', name: 'createAnswer'}}})
     .replaceWith(function(p) {
