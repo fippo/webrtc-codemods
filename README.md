@@ -9,6 +9,7 @@ jscodeshift -t createOffer .
 ```
 to apply the createOffer codemod. Then review your changes and commit them.
 
+Alternatively, play around with the codemods in [ast explorer](https://astexplorer.net/).
 # Author
 Philipp Hancke <fippo@appear.in>
 
