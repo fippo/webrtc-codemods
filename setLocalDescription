@@ -5,15 +5,10 @@ export default function transformer(file, api) {
     var callback = p.value.arguments.pop();
     return j.callExpression(
       j.memberExpression(
-        j.callExpression(
-          j.memberExpression(
-            p.value, j.identifier('then')
-          ),
-          [callback]
-        ),
-        j.identifier('catch')
+        p.value,
+        j.identifier('then')
       ),
-      [errback]
+      [callback, errback]
     );
   }
   return j(file.source)
@@ -26,5 +21,5 @@ export default function transformer(file, api) {
         return p.value;
       }
     })
-    .toSource({wrapColumn: 1});
+    .toSource({wrapColumn: 8});
 };
