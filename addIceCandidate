@@ -1,0 +1,25 @@
+export default function transformer(file, api) {
+  const j = api.jscodeshift;
+  function promisify(p) {
+    var errback = p.value.arguments.pop();
+    var callback = p.value.arguments.pop();
+    return j.callExpression(
+      j.memberExpression(
+        p.value,
+        j.identifier('then')
+      ),
+      [callback, errback]
+    );
+  }
+  return j(file.source)
+    .find(j.CallExpression, {callee: {property: {type: 'Identifier', name: 'addIceCandidate'}}})
+    .replaceWith(function(p) {
+      var len = p.value.arguments.length;
+      if (len > 1) {
+        return promisify(p);
+      } else {
+        return p.value;
+      }
+    })
+    .toSource({wrapColumn: 8});
+};
