@@ -18,7 +18,6 @@ export default function transformer(file, api) {
       return p.parentPath; // we need the expression statement which includes the semicolon.
     })
     .replaceWith(function(p) {
-      console.log(p.value.expression);
       var pc = p.value.expression.callee.object;
       var stream = p.value.expression.arguments[0];
       return j.ifStatement(
