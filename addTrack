@@ -1,0 +1,63 @@
+/* replace
+ * pc.addStream(stream);
+ * with
+ * if (RTCPeerConnection.prototype.addTrack) {
+ *   stream.getTracks.forEach(function(t) {
+ *     pc.addTrack(t, stream);
+ *   });
+ * } else {
+ *   pc.addStream(stream);
+ * }
+ */
+export default function transformer(file, api) {
+  const j = api.jscodeshift;
+
+  return j(file.source)
+    .find(j.CallExpression, {callee: {property: {type: 'Identifier', name: 'addStream'}}})
+    .replaceWith(function(p) {
+      console.log('CALLER', p.value.callee.object.name);
+      console.log('STREAM', p.value.arguments[0].name);
+      var pc = p.value.callee.object;
+      var stream = p.value.arguments[0];
+      return j.ifStatement(
+        j.memberExpression(
+          j.identifier('RTCPeerConnection.prototype'),
+          j.identifier('addTrack')
+        ),
+        j.blockStatement([
+          j.expressionStatement(
+            j.callExpression(
+              j.memberExpression(
+                j.callExpression(
+                  j.memberExpression(stream, j.identifier('getTracks')),
+                  []
+                ),
+                j.identifier('forEach')
+              ),
+              [j.functionExpression(
+                null,
+                [j.identifier('track')],
+                j.blockStatement([
+                  j.expressionStatement(
+                    j.callExpression(
+                      j.memberExpression(pc, j.identifier('addTrack')),
+                      [j.identifier('track')]
+                    )
+                  )
+                ])
+              )]
+            )
+          )
+        ]),
+        j.blockStatement([
+          j.expressionStatement(
+            j.callExpression(
+              j.memberExpression(pc, j.identifier('addStream')),
+              [stream]
+            )
+          )
+        ])
+      );
+    })
+    .toSource({wrapColumn: 8});
+};
