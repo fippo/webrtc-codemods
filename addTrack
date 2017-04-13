@@ -14,11 +14,13 @@ export default function transformer(file, api) {
 
   return j(file.source)
     .find(j.CallExpression, {callee: {property: {type: 'Identifier', name: 'addStream'}}})
+    .map(function(p) {
+      return p.parentPath; // we need the expression statement which includes the semicolon.
+    })
     .replaceWith(function(p) {
-      console.log('CALLER', p.value.callee.object.name);
-      console.log('STREAM', p.value.arguments[0].name);
-      var pc = p.value.callee.object;
-      var stream = p.value.arguments[0];
+      console.log(p.value.expression);
+      var pc = p.value.expression.callee.object;
+      var stream = p.value.expression.arguments[0];
       return j.ifStatement(
         j.memberExpression(
           j.identifier('RTCPeerConnection.prototype'),
