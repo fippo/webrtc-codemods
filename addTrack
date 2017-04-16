@@ -42,7 +42,7 @@ export default function transformer(file, api) {
                   j.expressionStatement(
                     j.callExpression(
                       j.memberExpression(pc, j.identifier('addTrack')),
-                      [j.identifier('track')]
+                      [j.identifier('track'), stream]
                     )
                   )
                 ])
