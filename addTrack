@@ -1,63 +1,38 @@
 /* replace
- * pc.addStream(stream);
+ *   pc.addStream(stream);
  * with
- * if (RTCPeerConnection.prototype.addTrack) {
- *   stream.getTracks.forEach(function(t) {
+ *   stream.getTracks().forEach(function(t) {
  *     pc.addTrack(t, stream);
  *   });
- * } else {
- *   pc.addStream(stream);
- * }
  */
 export default function transformer(file, api) {
   const j = api.jscodeshift;
 
   return j(file.source)
     .find(j.CallExpression, {callee: {property: {type: 'Identifier', name: 'addStream'}}})
-    .map(function(p) {
-      return p.parentPath; // we need the expression statement which includes the semicolon.
-    })
     .replaceWith(function(p) {
-      var pc = p.value.expression.callee.object;
-      var stream = p.value.expression.arguments[0];
-      return j.ifStatement(
+      var pc = p.value.callee.object;
+      var stream = p.value.arguments[0];
+      return j.callExpression(
         j.memberExpression(
-          j.identifier('RTCPeerConnection.prototype'),
-          j.identifier('addTrack')
+          j.callExpression(
+            j.memberExpression(stream, j.identifier('getTracks')),
+            []
+          ),
+          j.identifier('forEach')
         ),
-        j.blockStatement([
-          j.expressionStatement(
-            j.callExpression(
-              j.memberExpression(
-                j.callExpression(
-                  j.memberExpression(stream, j.identifier('getTracks')),
-                  []
-                ),
-                j.identifier('forEach')
-              ),
-              [j.functionExpression(
-                null,
-                [j.identifier('track')],
-                j.blockStatement([
-                  j.expressionStatement(
-                    j.callExpression(
-                      j.memberExpression(pc, j.identifier('addTrack')),
-                      [j.identifier('track'), stream]
-                    )
-                  )
-                ])
-              )]
+        [j.functionExpression(
+          null,
+          [j.identifier('track')],
+          j.blockStatement([
+            j.expressionStatement(
+              j.callExpression(
+                j.memberExpression(pc, j.identifier('addTrack')),
+                [j.identifier('track'), stream]
+              )
             )
-          )
-        ]),
-        j.blockStatement([
-          j.expressionStatement(
-            j.callExpression(
-              j.memberExpression(pc, j.identifier('addStream')),
-              [stream]
-            )
-          )
-        ])
+          ])
+        )]
       );
     })
     .toSource({wrapColumn: 8});
