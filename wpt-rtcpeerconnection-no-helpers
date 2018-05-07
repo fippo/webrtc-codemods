@@ -14,6 +14,15 @@ export default function transformer(file, api) {
       }
       return nextPath && nextPath.value.callee.name === 'promise_test';
     })
+    // check there is no add_cleanup in the function body
+    .filter(path => {
+      let nextPath = path.parentPath;
+      while (nextPath && nextPath.value.type !== 'CallExpression') {
+        nextPath = nextPath.parentPath;
+      }
+      const body = nextPath.value.arguments[0].body;
+      return j(body).find(j.Identifier, {name: 'add_cleanup'}).length === 0;
+    })
     .forEach(path => {
       // iterate parentPath until you find a CallExpression
       let nextPath = path.parentPath;
