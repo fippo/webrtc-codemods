@@ -1,0 +1,46 @@
+export default function transformer(file, api) {
+  const j = api.jscodeshift;
+  return j(file.source)
+    // .forEach(path => console.log(path))
+    // find each RTCPeerConnection constructor
+    .find(j.NewExpression, {callee: {type: 'Identifier', name: 'RTCPeerConnection'}})
+
+    // check it is inside a promise_test
+    .filter(path => {
+      // iterate parentPath until you find a CallExpression
+      let nextPath = path.parentPath;
+      while (nextPath && nextPath.value.type !== 'CallExpression') {
+        nextPath = nextPath.parentPath;
+      }
+      return nextPath && nextPath.value.callee.name === 'promise_test';
+    })
+    .forEach(path => {
+      // iterate parentPath until you find a CallExpression
+      let nextPath = path.parentPath;
+      while (nextPath && nextPath.value.type !== 'CallExpression') {
+        nextPath = nextPath.parentPath;
+      }
+      // console.log(nextPath.node.arguments[0].params[0].name); // should be 't' but we dont care about the name
+      const block = path.parentPath.parentPath.parentPath.parentPath.node;
+      const declaration = path.parentPath.parentPath.parentPath;
+      const pc = path.parentPath.value.id;
+      // TODO: insert, not push
+      const after = block.body.indexOf(declaration.value) + 1;
+      block.body.splice(after, 0, 
+        j.expressionStatement(j.callExpression(
+          j.memberExpression(
+            nextPath.node.arguments[0].params[0],
+            j.identifier('add_cleanup')
+          ),
+          [j.arrowFunctionExpression([],
+            j.callExpression(
+              j.memberExpression(pc, j.identifier('stop'), false),
+              []
+            )
+           )
+          ]
+        )
+      ));
+    })
+    .toSource();
+};
