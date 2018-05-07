@@ -1,0 +1,12 @@
+export default function transformer(file, api) {
+  const j = api.jscodeshift;
+  return j(file.source)
+    // .find(j.CallExpression)
+    .find(j.CallExpression, {callee: {type: 'Identifier', name: 'promise_test'}})
+    .forEach(path => {
+        if (path.value.arguments[0].params.length === 0) {
+          path.value.arguments[0].params.push(j.identifier('t'));
+        }
+    })
+    .toSource();
+};
