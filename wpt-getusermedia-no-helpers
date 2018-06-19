@@ -1,0 +1,79 @@
+const test_type = 'promise_test';
+
+export default function transformer(file, api) {
+  const j = api.jscodeshift;
+  return j(file.source)
+    // find each getUserMedia call
+    .find(j.CallExpression, {callee: {property: {type: 'Identifier', name: 'getUserMedia'}}})
+    // check it is inside a promise_test
+    .filter(path => {
+      // iterate parentPath until you find a CallExpression
+      let nextPath = path.parentPath;
+      while (nextPath && nextPath.parentPath) {
+        if (nextPath.value && nextPath.value.type === 'CallExpression' && nextPath.value.callee && nextPath.value.callee.type === 'Identifier' && nextPath.value.callee.name === test_type) {
+            break;
+        }
+        nextPath = nextPath.parentPath;
+      }
+      return nextPath && nextPath.value && nextPath.value.callee && nextPath.value.callee.name === test_type;
+    })
+    // find the .then()
+    .map(path => {
+      const fn = path.parentPath.parentPath;
+      // TODO: verify this is navigator and navigator.mediaDevices
+      return fn;
+    })
+    // check there is no add_cleanup in the function body
+    // TODO: does this conflict with the peerconnection?
+    .filter(path => {
+      if (!path.value.arguments) return false;
+      const fn = path.value.arguments[0];
+      return j(fn.body).find(j.Identifier, {name: 'add_cleanup'}).length === 0;
+    })
+    .find(j.BlockStatement)
+    .forEach(path => {
+      const body = path.get('body').get(0);
+      const stream = path.parentPath.value.params[0];
+
+      // search for the surrounding promise_test to get the name of the test.
+      let nextPath = path.parentPath;
+      while (nextPath && nextPath.parentPath) {
+        if (nextPath.value && nextPath.value.type === 'CallExpression' && nextPath.value.callee && nextPath.value.callee.type === 'Identifier' && nextPath.value.callee.name === test_type) {
+            break;
+        }
+        nextPath = nextPath.parentPath;
+      }
+      /*
+      if (!nextPath) {
+        return;
+      }
+      */
+      const test = nextPath.value.arguments[0].params[0];
+      body.insertBefore(
+        j.expressionStatement(
+          j.callExpression(
+            j.memberExpression(
+              j.identifier(test.name),
+              j.identifier('add_cleanup')
+            ),
+            [j.arrowFunctionExpression([],
+              j.memberExpression(
+                j.callExpression(
+                  j.memberExpression(j.identifier(stream.name), j.identifier('getTracks'), false),
+                  []
+                ),
+                j.callExpression(
+                  j.identifier('forEach'),
+                  [j.arrowFunctionExpression([j.identifier('track')],
+                    j.callExpression(
+                      j.memberExpression(j.identifier('track'), j.identifier('stop'), false), []))
+                  ]
+                ),
+              )
+            )]
+          )
+        )
+      );
+    })
+    .toSource();
+};
